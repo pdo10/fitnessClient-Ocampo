@@ -1,0 +1,15 @@
+{
+    "endpoints": {
+        "login":"/login",
+        "register":"/register",
+        "addWorkout": "/addWorkout",
+        "getMyWorkouts":"/getMyWorkouts",
+        "updateWorkout":"/updateWorkout",
+        "deleteWorkout":"/deleteWorkout",
+        "completeWorkoutStatus":"/completeWorkoutStatus"
+    },
+    "credentials": {
+        "email":"user@mail.com",
+        "password": "user1234"
+    }
+}
