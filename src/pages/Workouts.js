@@ -19,7 +19,12 @@ export default function Workouts() {
         Authorization: `Bearer ${token}`
       }
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
         if (Array.isArray(data.workouts)) {
           setWorkouts(data.workouts);
@@ -31,7 +36,7 @@ export default function Workouts() {
         console.error('Error fetching workouts:', error);
         Swal.fire({
           title: 'Error',
-          text: 'Failed to fetch workouts',
+          text: `Failed to fetch workouts: ${error.message}`,
           icon: 'error'
         });
         setWorkouts([]);
@@ -39,71 +44,54 @@ export default function Workouts() {
   }, [token]);
 
 
+
   const handleAddWorkout = () => {
-  setIsSubmitting(true);
-
-  // Check if user._id is available
-  if (!user || !user._id) {
-    Swal.fire({
-      title: 'Error',
-      text: 'User ID is not available.',
-      icon: 'error'
-    });
-    setIsSubmitting(false);
-    return;
-  }
-
-  fetch(`${process.env.REACT_APP_API_BASE_URL}/workouts/addWorkout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      name: newWorkout.name,
-      duration: newWorkout.duration,
-      userId: user._id  // Ensure userId is included
+    fetch(`${process.env.REACT_APP_API_BASE_URL}/workouts/addWorkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: newWorkout.name,
+        duration: newWorkout.duration,
+        userId: user.id 
+      })
     })
-  })
-    .then(res => {
-      if (!res.ok) {
-        return res.text().then(text => {
-          throw new Error(`Network response was not ok: ${text}`);
-        });
-      }
-      return res.json();
-    })
-    .then(data => {
-      if (data.Workout) {
-        setWorkouts([...workouts, data.Workout]);
-        setShowAddModal(false);
-        setNewWorkout({ name: '', duration: '' });
-        Swal.fire({
-          title: 'Success',
-          text: 'Workout added successfully',
-          icon: 'success'
-        });
-      } else {
+      .then(res => {
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(`Network response was not ok: ${text}`);
+          });
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.Workout) {
+          setWorkouts([...workouts, data.Workout]);
+          setShowAddModal(false);
+          setNewWorkout({ name: '', duration: '' });
+          Swal.fire({
+            title: 'Success',
+            text: 'Workout added successfully',
+            icon: 'success'
+          });
+        } else {
+          throw new Error('Unexpected response format');
+        }
+      })
+      .catch(error => {
+        console.error('Error adding workout:', error);
         Swal.fire({
           title: 'Error',
-          text: 'Failed to add workout',
+          text: `Failed to add workout: ${error.message}`,
           icon: 'error'
         });
-      }
-    })
-    .catch(error => {
-      console.error('Error adding workout:', error);
-      Swal.fire({
-        title: 'Error',
-        text: `Failed to add workout: ${error.message}`,
-        icon: 'error'
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-    })
-    .finally(() => {
-      setIsSubmitting(false);
-    });
-};
-
+  };
 
 
 
@@ -219,42 +207,60 @@ export default function Workouts() {
   const isUpdateFormValid = currentWorkout.name && currentWorkout.name.trim() !== '' && currentWorkout.duration && currentWorkout.duration.trim() !== '';
 
   return (
-    <Card className="mt-3">
-      <Card.Header>
-        <h3>Workouts</h3>
-        <Button variant="primary" onClick={() => setShowAddModal(true)}>Add New Workout</Button>
-      </Card.Header>
-      <Card.Body>
-        <Table striped bordered hover>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Duration</th>
-              <th>Actions</th>
+  <Card className="mt-3">
+    <Card.Header>
+      <h3>Workouts</h3>
+      <Button variant="primary" onClick={() => setShowAddModal(true)}>Add New Workout</Button>
+    </Card.Header>
+    <Card.Body>
+      <Table striped bordered hover>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Duration</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {workouts.map((workout, index) => (
+            <tr key={workout._id}>
+              <td>{index + 1}</td>
+              <td>{workout.name}</td>
+              <td>{workout.duration}</td>
+              <td>{workout.status}</td>
+              <td>
+                <Button
+                  variant="warning"
+                  onClick={() => { setCurrentWorkout(workout); setShowUpdateModal(true); }}
+                >
+                  Update
+                </Button>{' '}
+                <Button
+                  variant="success"
+                  onClick={() => handleCompleteWorkout(workout._id)}
+                  disabled={workout.status === 'Completed'}
+                >
+                  Complete
+                </Button>{' '}
+                <Button
+                  variant="danger"
+                  onClick={() => handleDeleteWorkout(workout._id)}
+                >
+                  Delete
+                </Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {workouts.map((workout, index) => (
-              <tr key={workout._id}>
-                <td>{index + 1}</td>
-                <td>{workout.name}</td>
-                <td>{workout.duration}</td>
-                <td>
-                  <Button variant="warning" onClick={() => { setCurrentWorkout(workout); setShowUpdateModal(true); }}>Update</Button>{' '}
-                  <Button variant="success" onClick={() => handleCompleteWorkout(workout._id)}>Complete</Button>{' '}
-                  <Button variant="danger" onClick={() => handleDeleteWorkout(workout._id)}>Delete</Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card.Body>
+          ))}
+        </tbody>
+      </Table>
+    </Card.Body>
 
       {/* Add Workout Modal */}
-      <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
+      <Modal show={showAddModal} onHide={() => setShowAddModal(false)} aria-labelledby="addWorkoutModalLabel">
         <Modal.Header closeButton>
-          <Modal.Title>Add New Workout</Modal.Title>
+          <Modal.Title id="addWorkoutModalLabel">Add New Workout</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
@@ -267,12 +273,12 @@ export default function Workouts() {
               <Form.Control type="text" placeholder="Enter workout duration" value={newWorkout.duration} onChange={(e) => setNewWorkout({ ...newWorkout, duration: e.target.value })} />
             </Form.Group>
           </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAddModal(false)}>Close</Button>
-          <Button variant="primary" onClick={handleAddWorkout} disabled={!isAddFormValid}>Save Workout</Button>
-        </Modal.Footer>
-      </Modal>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowAddModal(false)}>Close</Button>
+              <Button variant="primary" onClick={handleAddWorkout} disabled={!isAddFormValid}>Save Workout</Button>
+            </Modal.Footer>
+          </Modal>
 
       {/* Update Workout Modal */}
       <Modal show={showUpdateModal} onHide={() => setShowUpdateModal(false)}>
